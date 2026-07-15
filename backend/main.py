@@ -42,6 +42,7 @@ QUOTE_TTL = 60          # prices: 60 s
 SPARK_TTL = 15 * 60     # intraday sparkline history: 15 min
 NEWS_TTL = 5 * 60       # RSS news: 5 min
 NAV_TTL = 6 * 60 * 60   # AMFI NAV dump: 6 h (published once daily)
+MOVERS_TTL = 5 * 60     # NSE top gainers/losers: 5 min (one batch call)
 
 _cache: dict[str, tuple[float, object]] = {}
 _locks: dict[str, threading.Lock] = {}
@@ -161,6 +162,66 @@ def fetch_sparklines():
             _last_good_sparklines[symbol] = closes
         out[symbol] = closes
     return out
+
+
+# ---------------------------------------------------------- top movers ----
+
+# Nifty 100-style universe of large, liquid NSE stocks. NSE's own
+# gainers/losers API blocks datacenter IPs, so we rank these ourselves from
+# one Yahoo batch download. Delisted/renamed symbols are skipped gracefully.
+NSE_UNIVERSE = [
+    "RELIANCE", "TCS", "HDFCBANK", "ICICIBANK", "INFY", "HINDUNILVR", "ITC",
+    "SBIN", "BHARTIARTL", "KOTAKBANK", "LT", "AXISBANK", "ASIANPAINT",
+    "MARUTI", "SUNPHARMA", "TITAN", "ULTRACEMCO", "WIPRO", "NESTLEIND",
+    "BAJFINANCE", "M&M", "NTPC", "POWERGRID", "TATASTEEL",
+    "HCLTECH", "TECHM", "ADANIENT", "ADANIPORTS", "ONGC", "COALINDIA",
+    "GRASIM", "JSWSTEEL", "HINDALCO", "DRREDDY", "CIPLA", "APOLLOHOSP",
+    "BAJAJFINSV", "BAJAJ-AUTO", "BRITANNIA", "EICHERMOT", "HEROMOTOCO",
+    "INDUSINDBK", "SBILIFE", "HDFCLIFE", "TATACONSUM", "BEL",
+    "TRENT", "SHRIRAMFIN", "JIOFIN", "DMART", "ADANIGREEN", "ADANIPOWER",
+    "AMBUJACEM", "BANKBARODA", "BPCL", "CANBK", "CHOLAFIN", "COLPAL",
+    "DABUR", "DLF", "GAIL", "GODREJCP", "HAVELLS", "HAL", "ICICIGI",
+    "ICICIPRULI", "IOC", "INDIGO", "JINDALSTEL", "LICI", "LODHA", "MARICO",
+    "MOTHERSON", "NAUKRI", "PIDILITIND", "PFC", "PNB", "RECLTD", "SIEMENS",
+    "SRF", "TATAPOWER", "TORNTPHARM", "TVSMOTOR", "UNITDSPR", "VBL", "VEDL",
+    "ETERNAL", "ZYDUSLIFE", "ABB", "SHREECEM", "MUTHOOTFIN", "ALKEM",
+    "AUROPHARMA", "LUPIN", "IRCTC", "POLYCAB", "PERSISTENT", "MAXHEALTH",
+    "JSWENERGY", "NHPC", "IRFC", "ATGL",
+]
+
+
+def fetch_movers():
+    tickers = [s + ".NS" for s in NSE_UNIVERSE]
+    data = yf.download(
+        tickers=" ".join(tickers),
+        period="2d",
+        interval="1d",
+        group_by="ticker",
+        auto_adjust=False,
+        progress=False,
+        threads=True,
+    )
+    rows = []
+    for full in tickers:
+        try:
+            closes = data[full]["Close"].dropna()
+            if len(closes) < 2:
+                continue
+            prev = float(closes.iloc[-2])
+            last = float(closes.iloc[-1])
+            if prev <= 0:
+                continue
+            rows.append({
+                "symbol": full.removesuffix(".NS"),
+                "price": round(last, 2),
+                "change": round(last - prev, 2),
+                "changePercent": round((last - prev) / prev * 100, 2),
+            })
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+    rows.sort(key=lambda r: r["changePercent"], reverse=True)
+    log.info("movers computed from %d/%d symbols", len(rows), len(tickers))
+    return {"gainers": rows[:10], "losers": rows[-10:][::-1]}
 
 
 # ------------------------------------------------------------ coingecko ----
@@ -311,6 +372,7 @@ def markets():
         "commodities": cached("commodities", QUOTE_TTL, lambda: fetch_quotes(COMMODITIES)) or [],
         "etfs": cached("etfs", QUOTE_TTL, lambda: fetch_quotes(ETFS)) or [],
         "fund": cached("fund", NAV_TTL, fetch_fund_nav) or FUND_FALLBACK,
+        "movers": cached("movers", MOVERS_TTL, fetch_movers) or {"gainers": [], "losers": []},
         "news": cached("news", NEWS_TTL, fetch_news) or [],
         "updated": time.time(),
     }

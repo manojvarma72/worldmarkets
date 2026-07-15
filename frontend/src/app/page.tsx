@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import AssetGrid, { GridSkeleton } from "@/components/AssetGrid";
 import MarketCarousel, { CarouselSkeleton } from "@/components/MarketCarousel";
 import NewsFeed, { NewsSkeleton } from "@/components/NewsFeed";
+import TopMovers, { MoversSkeleton } from "@/components/TopMovers";
 import { API_URL, useMarkets } from "@/lib/useMarkets";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -52,6 +53,18 @@ export default function Home() {
               commodities={data.commodities}
               etfs={data.etfs}
               fund={data.fund}
+            />
+          )}
+        </section>
+
+        <section className="mt-8">
+          <SectionTitle>NSE Top Movers</SectionTitle>
+          {loading || !data ? (
+            <MoversSkeleton />
+          ) : (
+            <TopMovers
+              gainers={data.movers?.gainers ?? []}
+              losers={data.movers?.losers ?? []}
             />
           )}
         </section>

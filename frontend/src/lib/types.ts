@@ -23,6 +23,13 @@ export interface Fund {
   source: string;
 }
 
+export interface Mover {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
 export interface NewsItem {
   title: string;
   source: string;
@@ -37,6 +44,7 @@ export interface MarketsResponse {
   commodities: Quote[];
   etfs: Quote[];
   fund: Fund;
+  movers: { gainers: Mover[]; losers: Mover[] };
   news: NewsItem[];
   updated: number;
 }
