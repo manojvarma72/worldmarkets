@@ -76,8 +76,11 @@ def cached(key: str, ttl: int, fetch_fn):
 
 INDICES = [
     ("^NSEI", "Nifty 50"),
+    ("^BSESN", "BSE Sensex"),
     ("NIFTY_MIDCAP_100.NS", "Nifty Midcap 100"),
     ("^CNXSC", "Nifty Smallcap 100"),
+    # Yahoo's BSE Smallcap data is unreliable (esp. from datacenter IPs);
+    # the card appears whenever Yahoo serves it
     ("BSE-SMLCAP.BO", "BSE Smallcap"),
 ]
 
