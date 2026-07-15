@@ -1,0 +1,16 @@
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+
+# Node / Next.js (frontend has its own .gitignore too)
+node_modules/
+.next/
+out/
+
+# Local env & OS noise
+.env*.local
+.DS_Store
+
+# Local-only helpers
+.claude/
