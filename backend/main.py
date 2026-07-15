@@ -108,16 +108,31 @@ def _quote(symbol: str, name: str):
     }
 
 
+_last_good_quotes: dict[str, dict] = {}
+
+
 def fetch_quotes(pairs):
     out = []
     for symbol, name in pairs:
+        q = None
         try:
             q = _quote(symbol, name)
-            if q:
-                out.append(q)
         except Exception as exc:
             log.warning("quote failed for %s: %s", symbol, exc)
+        if q:
+            _last_good_quotes[symbol] = q
+        else:
+            # per-symbol resilience: a transient upstream failure serves the
+            # last known quote instead of dropping the card from the UI
+            q = _last_good_quotes.get(symbol)
+            if q:
+                log.info("serving last known quote for %s", symbol)
+        if q:
+            out.append(q)
     return out
+
+
+_last_good_sparklines: dict[str, list] = {}
 
 
 def fetch_sparklines():
@@ -128,16 +143,20 @@ def fetch_sparklines():
     """
     out = {}
     for symbol, _ in INDICES:
+        closes = []
         try:
             hist = yf.Ticker(symbol).history(period="1d", interval="5m")
             closes = [round(v, 2) for v in hist["Close"].dropna().tolist()]
             if len(closes) > 30:
                 step = len(closes) / 30
                 closes = [closes[int(i * step)] for i in range(30)]
-            out[symbol] = closes
         except Exception as exc:
             log.warning("sparkline failed for %s: %s", symbol, exc)
-            out[symbol] = []
+        if not closes:
+            closes = _last_good_sparklines.get(symbol, [])
+        else:
+            _last_good_sparklines[symbol] = closes
+        out[symbol] = closes
     return out
 
 
