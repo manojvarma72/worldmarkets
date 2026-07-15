@@ -143,7 +143,7 @@ def fetch_sparklines():
 
 # ------------------------------------------------------------ coingecko ----
 
-def fetch_crypto():
+def _crypto_from_coingecko():
     r = requests.get(
         "https://api.coingecko.com/api/v3/simple/price",
         params={
@@ -151,6 +151,8 @@ def fetch_crypto():
             "vs_currencies": "usd,inr",
             "include_24hr_change": "true",
         },
+        # CoinGecko 403s the default python-requests UA from datacenter IPs
+        headers={"User-Agent": "Mozilla/5.0 (compatible; worldmarkets.in/1.0)"},
         timeout=15,
     )
     r.raise_for_status()
@@ -168,7 +170,39 @@ def fetch_crypto():
             "priceInr": d.get("inr"),
             "change24h": round(d.get("usd_24h_change") or 0, 2),
         })
+    if not out:
+        raise ValueError("CoinGecko returned no usable data")
     return out
+
+
+def _crypto_from_yahoo():
+    out = []
+    for ysym, cid, name, sym in (
+        ("BTC-USD", "bitcoin", "Bitcoin", "BTC"),
+        ("ETH-USD", "ethereum", "Ethereum", "ETH"),
+    ):
+        fi = yf.Ticker(ysym).fast_info
+        price = fi.last_price
+        prev = fi.previous_close
+        if price is None or prev in (None, 0):
+            continue
+        out.append({
+            "id": cid,
+            "name": name,
+            "symbol": sym,
+            "priceUsd": round(price, 2),
+            "priceInr": None,
+            "change24h": round((price - prev) / prev * 100, 2),
+        })
+    return out
+
+
+def fetch_crypto():
+    try:
+        return _crypto_from_coingecko()
+    except Exception as exc:
+        log.warning("CoinGecko failed (%s); falling back to Yahoo BTC-USD/ETH-USD", exc)
+        return _crypto_from_yahoo()
 
 
 # ----------------------------------------------------------------- AMFI ----
