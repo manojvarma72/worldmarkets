@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MarketsResponse } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
 const POLL_MS = 30_000;
 
 export function useMarkets() {

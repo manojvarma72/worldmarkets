@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import AssetGrid, { GridSkeleton } from "@/components/AssetGrid";
 import MarketCarousel, { CarouselSkeleton } from "@/components/MarketCarousel";
 import NewsFeed, { NewsSkeleton } from "@/components/NewsFeed";
-import { useMarkets } from "@/lib/useMarkets";
+import { API_URL, useMarkets } from "@/lib/useMarkets";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-3 px-4 text-lg font-semibold text-slate-100">{children}</h2>;
@@ -29,7 +29,7 @@ export default function Home() {
       <div className="mx-auto max-w-3xl pt-20">
         {error && !data && (
           <p className="mx-4 mb-4 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-500">
-            Unable to reach the market data backend ({error}). Is it running on port 8000?
+            Unable to reach the market data backend at {API_URL} ({error}).
           </p>
         )}
 
