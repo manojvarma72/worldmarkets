@@ -5,6 +5,7 @@ import AssetGrid, { GridSkeleton } from "@/components/AssetGrid";
 import MarketCarousel, { CarouselSkeleton } from "@/components/MarketCarousel";
 import NewsFeed, { NewsSkeleton } from "@/components/NewsFeed";
 import TopMovers, { MoversSkeleton } from "@/components/TopMovers";
+import VisitorFooter from "@/components/VisitorFooter";
 import { API_URL, useMarkets } from "@/lib/useMarkets";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -73,6 +74,8 @@ export default function Home() {
           <SectionTitle>Latest Financial News</SectionTitle>
           {loading ? <NewsSkeleton /> : <NewsFeed news={data?.news ?? []} />}
         </section>
+
+        <VisitorFooter />
       </div>
     </main>
   );

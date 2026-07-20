@@ -378,6 +378,36 @@ def markets():
     }
 
 
+# ------------------------------------------------------------- visitors ----
+
+# Free persistent counter (abacus.jasoncameron.dev) — Render's free tier has
+# no durable disk, so the count lives in this external no-signup service.
+VISITS_HIT = "https://abacus.jasoncameron.dev/hit/worldmarkets-in/site-visits"
+VISITS_GET = "https://abacus.jasoncameron.dev/get/worldmarkets-in/site-visits"
+
+
+def _counter(url: str):
+    try:
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        return {"count": r.json().get("value")}
+    except Exception as exc:
+        log.warning("visit counter failed: %s", exc)
+        return {"count": None}
+
+
+@app.post("/api/visit")
+def visit():
+    """Increment and return the visitor count (called once per session)."""
+    return _counter(VISITS_HIT)
+
+
+@app.get("/api/visitors")
+def visitors():
+    """Read the visitor count without incrementing."""
+    return _counter(VISITS_GET)
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -387,7 +417,7 @@ def health():
 def root():
     return {
         "service": "worldmarkets.in API",
-        "endpoints": ["/api/markets", "/api/health"],
+        "endpoints": ["/api/markets", "/api/visitors", "/api/health"],
         "dashboard": "http://localhost:3000",
         "docs": "/docs",
     }
