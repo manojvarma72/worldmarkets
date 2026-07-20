@@ -6,6 +6,7 @@ import MarketCarousel, { CarouselSkeleton } from "@/components/MarketCarousel";
 import NewsFeed, { NewsSkeleton } from "@/components/NewsFeed";
 import TopMovers, { MoversSkeleton } from "@/components/TopMovers";
 import VisitorFooter from "@/components/VisitorFooter";
+import WorldIndices, { WorldSkeleton } from "@/components/WorldIndices";
 import { API_URL, useMarkets } from "@/lib/useMarkets";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,11 @@ export default function Home() {
           ) : (
             <MarketCarousel indices={data?.indices ?? []} sparklines={data?.sparklines ?? {}} />
           )}
+        </section>
+
+        <section className="mt-8">
+          <SectionTitle>World Indices</SectionTitle>
+          {loading || !data ? <WorldSkeleton /> : <WorldIndices world={data.world ?? {}} />}
         </section>
 
         <section className="mt-8">

@@ -45,6 +45,7 @@ export interface MarketsResponse {
   etfs: Quote[];
   fund: Fund;
   movers: { gainers: Mover[]; losers: Mover[] };
+  world: Record<string, Quote[]>;
   news: NewsItem[];
   updated: number;
 }

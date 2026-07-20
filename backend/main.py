@@ -164,6 +164,81 @@ def fetch_sparklines():
     return out
 
 
+# -------------------------------------------------------- world indices ----
+
+# Grouped like Google Finance's markets page. "S&P EURO" and "S&P Asia 50"
+# aren't on Yahoo, so STOXX Europe 600 and S&P/ASX 200 stand in for them.
+WORLD_INDICES = {
+    "Americas": [
+        ("^GSPC", "S&P 500"),
+        ("^DJI", "Dow Jones"),
+        ("^IXIC", "Nasdaq Composite"),
+        ("^RUT", "Russell 2000"),
+        ("^GSPTSE", "S&P/TSX Composite"),
+        ("^BVSP", "Bovespa (Brazil)"),
+    ],
+    "Europe, Middle East & Africa": [
+        ("^GDAXI", "DAX (Germany)"),
+        ("^FTSE", "FTSE 100 (UK)"),
+        ("^FCHI", "CAC 40 (France)"),
+        ("^IBEX", "IBEX 35 (Spain)"),
+        ("^STOXX50E", "EURO STOXX 50"),
+        ("^STOXX", "STOXX Europe 600"),
+    ],
+    "Asia Pacific": [
+        ("^N225", "Nikkei 225 (Japan)"),
+        ("000001.SS", "SSE Composite (China)"),
+        ("^HSI", "Hang Seng (Hong Kong)"),
+        ("^BSESN", "BSE Sensex (India)"),
+        ("^NSEI", "Nifty 50 (India)"),
+        ("^AXJO", "S&P/ASX 200 (Australia)"),
+    ],
+}
+
+_last_good_world: dict[str, dict] = {}
+
+
+def fetch_world():
+    all_syms = [s for pairs in WORLD_INDICES.values() for s, _ in pairs]
+    data = yf.download(
+        tickers=" ".join(all_syms),
+        period="2d",
+        interval="1d",
+        group_by="ticker",
+        auto_adjust=False,
+        progress=False,
+        threads=True,
+    )
+    out = {}
+    for region, pairs in WORLD_INDICES.items():
+        rows = []
+        for sym, name in pairs:
+            q = None
+            try:
+                closes = data[sym]["Close"].dropna()
+                if len(closes) >= 2:
+                    prev = float(closes.iloc[-2])
+                    last = float(closes.iloc[-1])
+                    if prev > 0:
+                        q = {
+                            "symbol": sym,
+                            "name": name,
+                            "price": round(last, 2),
+                            "change": round(last - prev, 2),
+                            "changePercent": round((last - prev) / prev * 100, 2),
+                        }
+            except (KeyError, IndexError, TypeError, ValueError):
+                pass
+            if q:
+                _last_good_world[sym] = q
+            else:
+                q = _last_good_world.get(sym)
+            if q:
+                rows.append(q)
+        out[region] = rows
+    return out
+
+
 # ---------------------------------------------------------- top movers ----
 
 # Nifty 100-style universe of large, liquid NSE stocks. NSE's own
@@ -373,6 +448,7 @@ def markets():
         "etfs": cached("etfs", QUOTE_TTL, lambda: fetch_quotes(ETFS)) or [],
         "fund": cached("fund", NAV_TTL, fetch_fund_nav) or FUND_FALLBACK,
         "movers": cached("movers", MOVERS_TTL, fetch_movers) or {"gainers": [], "losers": []},
+        "world": cached("world", QUOTE_TTL, fetch_world) or {},
         "news": cached("news", NEWS_TTL, fetch_news) or [],
         "updated": time.time(),
     }
